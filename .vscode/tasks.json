@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "pytest: run selected tests",
+      "type": "shell",
+      "command": "C:\\Users\\kennepc\\AppData\\Local\\anaconda3\\python.exe -m pytest -q tests/test_worker_delayed_retry.py tests/test_youtube_429.py -q",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Swarm: docker-compose up",
+      "type": "shell",
+      "command": "docker-compose up --build",
+      "options": {
+        "cwd": "${workspaceFolder}/Projects/SwarmAgents"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
