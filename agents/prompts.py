@@ -74,11 +74,27 @@ class PromptStore:
         """
         for p in self._prompt_list:
             pid = p.get("id")
-            vars_decl = set(p.get("variables", []))
+            # basic id/type checks
+            if not pid or not isinstance(pid, str):
+                raise ValueError(f"Prompt has invalid or missing id: {pid}")
+
+            # prompt_template must be present and a string
+            tpl_val = p.get("prompt_template")
+            if not tpl_val or not isinstance(tpl_val, str):
+                raise ValueError(f"Prompt {pid} missing or invalid prompt_template")
+            vars_decl = p.get("variables", [])
+            if not isinstance(vars_decl, list) or not all(isinstance(x, str) for x in vars_decl):
+                raise ValueError(f"Prompt {pid} variables must be a list of strings")
+            vars_decl = set(vars_decl)
             example = p.get("example", {}) or {}
             missing = vars_decl - set(example.keys())
             if missing:
                 raise ValueError(f"Prompt {pid} example missing variables: {missing}")
+
+            # tags if present must be list of strings
+            tags = p.get("tags", [])
+            if tags is not None and (not isinstance(tags, list) or not all(isinstance(t, str) for t in tags)):
+                raise ValueError(f"Prompt {pid} tags must be a list of strings")
 
             # type checks for common fields
             if "persona" in vars_decl:
@@ -106,4 +122,15 @@ class PromptStore:
                 raise ValueError(f"Prompt {pid} example failed to render: {e}")
 
 
-ps = PromptStore()
+def set_default_promptstore(path: Optional[str] = None, strict: Optional[bool] = None, validate_schema: Optional[bool] = None):
+    """Set and return the module-level default PromptStore instance.
+
+    Call this to programmatically override the default `ps` used by modules.
+    """
+    global ps
+    ps = PromptStore(path=path, strict=strict, validate_schema=validate_schema)
+    return ps
+
+
+# create module-level default using environment variables unless overridden programmatically
+ps = set_default_promptstore()
