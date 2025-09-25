@@ -41,6 +41,7 @@
                 "pytest"
             ],
             "example": {
+                "persona": "QA Engineer",
                 "code": "def normalize_angle(deg): return ((deg + 180) % 360) - 180",
                 "notes": "Angles may be floats; handle negative values appropriately."
             }
@@ -62,6 +63,7 @@
                 "security"
             ],
             "example": {
+                "persona": "DevOps Engineer",
                 "dependencies": "fastapi==0.85.0\nuvicorn==0.18.0\nredis==4.3.4",
                 "goal": "Upgrade to latest minor releases and ensure Python 3.10 compatibility."
             }
@@ -82,6 +84,7 @@
                 "RAG"
             ],
             "example": {
+                "persona": "Data Engineer",
                 "collection_description": "2000 PDF pages of chemistry reference notes; want paragraph-level retrieval."
             }
         },
@@ -102,6 +105,7 @@
                 "literature"
             ],
             "example": {
+                "persona": "Chemistry Researcher",
                 "text": "(abstract) We report a new catalyst for hydrogenation of alkenes...",
                 "purpose": "Create a short note for the lab notebook with reagents and conditions."
             }
@@ -121,6 +125,7 @@
                 "planning"
             ],
             "example": {
+                "persona": "Project Manager",
                 "task": "Build the initial RAG pipeline for the Chemistry Resource Tool."
             }
         },
@@ -144,8 +149,9 @@
                 "curation"
             ],
             "example": {
+                "persona": "YouTube Research Expert",
                 "topic_or_person": "climate change Eric Holthaus",
-                "depth_of_search": "expand keywords and include channel filtering for reputable outlets",
+                "depth_of_search": 2,
                 "max_results": 50,
                 "filters": "publishedAfter=2020-01-01"
             }
