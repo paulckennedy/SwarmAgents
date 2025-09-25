@@ -34,8 +34,13 @@ def process_job(job: dict, researcher_factory=None) -> dict:
             depth = int(payload.get('depth_of_search', 1))
             filters = payload.get('filters')
             researcher = researcher_factory() if researcher_factory is not None else YouTubeResearcher()
-            # note: researcher.search expects 'depth' not 'depth_of_search'
-            records = researcher.search(topic, max_results=max_results, depth=depth, filters=filters)
+            # Try calling researcher.search with the canonical signature, but
+            # some test doubles or older agents accept 'depth_of_search' instead.
+            try:
+                records = researcher.search(topic, max_results=max_results, depth=depth, filters=filters)
+            except TypeError:
+                # fallback for researcher implementations that expect depth_of_search
+                records = researcher.search(topic, max_results=max_results, depth_of_search=depth, filters=filters)
             result = {
                 'id': job_id,
                 'response': records,

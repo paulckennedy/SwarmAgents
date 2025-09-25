@@ -19,6 +19,15 @@ import time
 import random
 import re
 import json
+try:
+    from agents.graph_rag import GraphRAG
+except Exception:
+    GraphRAG = None
+try:
+    # prompt store helper
+    from .prompts import ps
+except Exception:
+    ps = None
 
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
@@ -57,7 +66,10 @@ def _save_state(path: str, data: Dict) -> None:
         return
 
 
-class YouTubeResearcher:
+from .agent_base import AgentBase
+
+
+class YouTubeResearcher(AgentBase):
     """Performs simple YouTube searches and returns curated records.
 
     The class is safe to instantiate without an API key for offline testing; any
@@ -209,7 +221,7 @@ class YouTubeResearcher:
         return tags
 
     # --- main public method ---
-    def search(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict] = None) -> List[Dict]:
+    def search(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict] = None, **kwargs) -> List[Dict]:
         """Search for videos matching `query` and return a list of record dicts.
 
         - query: search text
@@ -234,6 +246,8 @@ class YouTubeResearcher:
 
         next_page_token = None
         pages = 0
+        # support alias depth_of_search from callers/tests
+        depth = int(kwargs.get('depth_of_search', depth))
         while pages < depth:
             if next_page_token:
                 params["pageToken"] = next_page_token
@@ -277,6 +291,8 @@ class YouTubeResearcher:
                     "channelTitle": snip.get("channelTitle"),
                     "publishedAt": snip.get("publishedAt"),
                     "durationSeconds": duration,
+                    # legacy field used in some tests/consumers
+                    "duration": duration,
                     "viewCount": view_count,
                     "relevanceScore": self._compute_relevance(snip.get("title"), snip.get("description"), view_count),
                     "suggestedTags": self._extract_tags(snip.get("title"), snip.get("description")),
@@ -297,8 +313,35 @@ class YouTubeResearcher:
 
         return collected[:max_results]
 
+    # --- optional: render an LLM prompt using the central prompts.json ---
+    def make_search_prompt(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict] = None) -> str:
+        """Render the YouTube Researcher prompt (pr-007) from prompts.json.
+
+        This is a convenience for downstream enrichment or for sending to a model runner.
+        If the prompts store isn't available, returns an informative fallback string.
+        """
+        vars = {
+            "persona": "YouTube Research Expert",
+            "topic_or_person": query,
+            "max_results": max_results,
+            "depth_of_search": depth,
+            "filters": filters or "",
+        }
+        return self.render_prompt("pr-007", vars)
+
     # Optional helper to push to vector DB; left small and best-effort.
     def post_to_vector_db(self, records: List[Dict]) -> bool:
+        # If configured with a neo4j URI, use the GraphRAG agent
+        if self.vector_db_url and self.vector_db_url.startswith("neo4j://") and GraphRAG:
+            try:
+                # GraphRAG expects URI, user, password via env or defaults
+                g = GraphRAG(uri=self.vector_db_url)
+                ok = g.ingest(records)
+                g.close()
+                return ok
+            except Exception:
+                return False
+
         if not self.vector_db_url:
             raise RuntimeError("No VECTOR_DB_URL configured")
         try:
