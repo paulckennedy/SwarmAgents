@@ -21,19 +21,19 @@ def _make_env(strict: bool = False):
 
 
 class PromptStore:
-    def __init__(self, path: Optional[str] = None, strict: Optional[bool] = None):
+    def __init__(self, path: Optional[str] = None, strict: Optional[bool] = None, validate_schema: Optional[bool] = None):
         self.path = path or DEFAULT_PROMPTS_PATH
         # strict mode can be controlled by PROMPTS_STRICT env var or constructor arg
         if strict is None:
             strict = os.environ.get("PROMPTS_STRICT", "0") not in ("0", "", "false", "False")
         self.strict = bool(strict)
         self.env = _make_env(self.strict)
-        # schema validation flag controlled by PROMPTS_VALIDATE_SCHEMA or constructor
-        validate_schema_env = os.environ.get("PROMPTS_VALIDATE_SCHEMA", "0")
-        self.validate_schema = False
-        # allow truthy values to enable validation
-        if validate_schema_env not in ("0", "", "false", "False"):
-            self.validate_schema = True
+        # schema validation flag controlled by PROMPTS_VALIDATE_SCHEMA env var or constructor arg
+        if validate_schema is None:
+            validate_schema_env = os.environ.get("PROMPTS_VALIDATE_SCHEMA", "0")
+            self.validate_schema = validate_schema_env not in ("0", "", "false", "False")
+        else:
+            self.validate_schema = bool(validate_schema)
         self._load()
 
     def _load(self) -> None:
