@@ -35,3 +35,15 @@ def test_validate_prompts_fails_for_bad_example(tmp_path, monkeypatch):
     # Constructing PromptStore with path should raise ValueError due to missing example var
     with pytest.raises(ValueError):
         PromptStore(path=str(pfile))
+
+
+def test_constructor_flag_overrides_env_var(monkeypatch, tmp_path):
+    # Case A: env var true, constructor False -> validation disabled
+    monkeypatch.setenv("PROMPTS_VALIDATE_SCHEMA", "1")
+    ps = PromptStore(validate_schema=False)
+    assert ps.validate_schema is False
+
+    # Case B: env var false, constructor True -> validation enabled
+    monkeypatch.setenv("PROMPTS_VALIDATE_SCHEMA", "0")
+    ps2 = PromptStore(validate_schema=True)
+    assert ps2.validate_schema is True
