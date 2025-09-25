@@ -27,11 +27,43 @@ Quick start (dev)
 
    This will start Redis, the API (FastAPI/uvicorn) and a worker process.
 
-2. Create a task (example):
+   Set the API URL (examples)
 
-   curl -X POST "http://localhost:8000/tasks" -H "Content-Type: application/json" -d "{\"prompt\": \"Summarize water chemistry basics\"}"
+   - PowerShell (temporary for current session):
 
-   This returns a job id. Poll `/status/{id}` for the result.
+     ```powershell
+     $env:API_URL = 'http://localhost:8000'
+     curl -X POST "$env:API_URL/tasks" -H "Content-Type: application/json" -d '{"prompt": "Summarize water chemistry basics"}'
+     ```
+
+   - Bash / POSIX shell:
+
+     ```bash
+     export API_URL=http://localhost:8000
+     curl -X POST "$API_URL/tasks" -H "Content-Type: application/json" -d '{"prompt": "Summarize water chemistry basics"}'
+     ```
+
+1. Create a task (example):
+
+```powershell
+curl -X POST "$API_URL/tasks" -H "Content-Type: application/json" -d '{"prompt": "Summarize water chemistry basics"}'
+```
+
+This returns a job id. Poll `/status/{id}` for the result.
+
+Try it (one-liners)
+
+- PowerShell (set and call in one line):
+
+```powershell
+$env:API_URL = 'http://localhost:8000'; curl -X POST "$env:API_URL/tasks" -H "Content-Type: application/json" -d '{"prompt": "Summarize water chemistry basics"}'
+```
+
+- Bash (set and call in one line):
+
+```bash
+API_URL=http://localhost:8000 curl -X POST "$API_URL/tasks" -H "Content-Type: application/json" -d '{"prompt": "Summarize water chemistry basics"}'
+```
 
 Replacing the mock model with a real local runner
 
@@ -49,3 +81,9 @@ Next steps I can do now
 - Add more agent personas and a tools registry.
 
 Tell me which of the next steps to implement.
+
+
+Using `.env` or CI
+
+If you prefer to store the API endpoint in a file, create a `.env` with a line like `API_URL=http://localhost:8000` and load it in your shell or CI environment. In GitHub Actions, set `API_URL` as an environment variable for the job or step that runs integration checks or examples.
+>>>>>>> da2c081 (chore(docs): add mdformat check CI, pre-commit hook, and format scripts; add mdformat to requirements)

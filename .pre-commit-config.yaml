@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mdformat
+        name: mdformat
+        entry: python -m mdformat
+        language: system
+        files: \.(md|MD)$
