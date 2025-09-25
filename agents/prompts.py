@@ -28,6 +28,12 @@ class PromptStore:
             strict = os.environ.get("PROMPTS_STRICT", "0") not in ("0", "", "false", "False")
         self.strict = bool(strict)
         self.env = _make_env(self.strict)
+        # schema validation flag controlled by PROMPTS_VALIDATE_SCHEMA or constructor
+        validate_schema_env = os.environ.get("PROMPTS_VALIDATE_SCHEMA", "0")
+        self.validate_schema = False
+        # allow truthy values to enable validation
+        if validate_schema_env not in ("0", "", "false", "False"):
+            self.validate_schema = True
         self._load()
 
     def _load(self) -> None:
@@ -36,7 +42,11 @@ class PromptStore:
                 data = json.load(f)
         except Exception:
             data = {"prompts": []}
-        self._prompts = {p.get("id"): p for p in data.get("prompts", [])}
+        # keep list for validation and dict for fast lookup
+        self._prompt_list = data.get("prompts", [])
+        self._prompts = {p.get("id"): p for p in self._prompt_list}
+        if self.validate_schema:
+            self._validate_prompts()
 
     def list_prompts(self):
         return list(self._prompts.keys())
@@ -52,6 +62,48 @@ class PromptStore:
         template = self.env.from_string(tpl)
         # Jinja will raise in strict mode if variables are missing
         return template.render(**(variables or {}))
+
+    def _validate_prompts(self) -> None:
+        """Run lightweight schema validations on loaded prompts.
+
+        Checks performed:
+        - Each prompt's example contains all declared variables.
+        - Common variable types are validated (max_results, depth_of_search -> int; persona -> str; filters -> str|dict).
+        - Example can be rendered by Jinja2 (non-strict rendering).
+        Raises ValueError on validation failures.
+        """
+        for p in self._prompt_list:
+            pid = p.get("id")
+            vars_decl = set(p.get("variables", []))
+            example = p.get("example", {}) or {}
+            missing = vars_decl - set(example.keys())
+            if missing:
+                raise ValueError(f"Prompt {pid} example missing variables: {missing}")
+
+            # type checks for common fields
+            if "persona" in vars_decl:
+                val = example.get("persona")
+                if val is not None and not isinstance(val, str):
+                    raise ValueError(f"Prompt {pid} example persona must be a string")
+
+            for int_field in ("max_results", "depth_of_search"):
+                if int_field in vars_decl:
+                    v = example.get(int_field)
+                    if v is not None and not isinstance(v, int):
+                        raise ValueError(f"Prompt {pid} example {int_field} must be an integer")
+
+            if "filters" in vars_decl:
+                fval = example.get("filters")
+                if fval is not None and not isinstance(fval, (str, dict)):
+                    raise ValueError(f"Prompt {pid} example filters must be a string or object")
+
+            # ensure the template renders with the example (non-strict)
+            try:
+                env = _make_env(strict=False)
+                tpl = env.from_string(p.get("prompt_template", ""))
+                tpl.render(**example)
+            except Exception as e:
+                raise ValueError(f"Prompt {pid} example failed to render: {e}")
 
 
 ps = PromptStore()
