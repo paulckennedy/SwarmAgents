@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# SwarmAgents
-=======
 SwarmAgents — fully-local prototype
 
 Goal
@@ -52,4 +49,3 @@ Next steps I can do now
 - Add more agent personas and a tools registry.
 
 Tell me which of the next steps to implement.
->>>>>>> 936debd (Add YouTube researcher quota handling, worker DI, tests, and VS Code settings)
