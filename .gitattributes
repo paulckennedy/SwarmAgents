@@ -1,0 +1,2 @@
+# Normalize markdown files to LF to avoid EOL diffs between Windows and CI runners
+*.md text eol=lf
