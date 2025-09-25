@@ -23,3 +23,40 @@ jobs:
         run: python -m pytest -q
       - name: Validate prompts
         run: python -m scripts.validate_prompts --paths prompts.json --report-json validation-report.json
+
+  prompt-validation:
+    needs: test-and-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run prompt validation (produce report)
+        id: validate
+        continue-on-error: true
+        run: python -m scripts.validate_prompts --paths prompts.json --report-json validation-report.json
+      - name: Upload validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompts-validation-report
+          path: validation-report.json
+      - name: Attempt autofix (safe fixes)
+        id: autofix
+        continue-on-error: true
+        run: python -m scripts.validate_prompts --paths prompts.json --autofix
+      - name: Create PR for autofix changes
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: autofix prompts.json (CI)"
+          branch: "autofix/prompts-${{ github.run_id }}"
+          title: "Auto-fix prompts.json (validation)"
+          body: "This PR contains automatic fixes to prompts.json from the validation CI job."
