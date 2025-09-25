@@ -1,10 +1,12 @@
 YouTube Researcher Agent
 
 Purpose
+
 - Search YouTube (Data API v3) for videos related to a topic or person.
 - Return a curated JSON array of video records ready for ingestion by a vector DB.
 
 Quick start
+
 1. Create a virtualenv and install dependencies:
 
 ```powershell
@@ -26,6 +28,7 @@ python -m agents.youtube_researcher "climate change" --max 5
 ```
 
 Notes
+
 - The module uses the public YouTube Data API. Ensure your API key has quota.
 - For unit testing, the tests mock network calls and do not require a live API key.
 
