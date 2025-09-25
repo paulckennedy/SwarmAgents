@@ -1,2 +1,2 @@
-<# Format all markdown files in the repo using the Python mdformat module #>
-python -m mdformat .
+<# Format all markdown files in the repo using the Anaconda Python mdformat module #>
+& 'C:/Users/kennepc/AppData/Local/anaconda3/python.exe' -m mdformat .
