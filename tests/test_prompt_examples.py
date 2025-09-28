@@ -1,8 +1,6 @@
 import json
 import os
 
-import pytest
-
 from agents.prompts import PromptStore
 
 

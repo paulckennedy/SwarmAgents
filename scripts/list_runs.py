@@ -5,18 +5,21 @@ Usage:
   python scripts/list_runs.py [--pattern job_* | last_job_* ]
 """
 from __future__ import annotations
-import os
-import json
-import glob
+
 import argparse
+import glob
+import json
+import os
 from datetime import datetime
 
-RUNS_DIR = os.path.join(os.getcwd(), "runs")
+RUNS_DIR = os.path.join(os.getcwd(), "runs", "jobs")
 
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--pattern", default="job_*", help="Glob pattern to list (default: job_*)")
+    p.add_argument(
+        "--pattern", default="job_*", help="Glob pattern to list (default: job_*)"
+    )
     return p.parse_args()
 
 
@@ -29,10 +32,10 @@ def main():
         return
     for pth in files:
         try:
-            with open(pth, 'r', encoding='utf-8') as fh:
+            with open(pth, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
-            rid = data.get('id')
-            resp = data.get('response')
+            rid = data.get("id")
+            resp = data.get("response")
             count = len(resp) if isinstance(resp, list) else (1 if resp else 0)
             mtime = datetime.fromtimestamp(os.path.getmtime(pth)).isoformat()
             print(f"{os.path.basename(pth)} - id={rid} items={count} mtime={mtime}")
@@ -40,5 +43,5 @@ def main():
             print("Failed to read", pth, e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

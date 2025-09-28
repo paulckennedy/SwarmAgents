@@ -1,0 +1,9 @@
+{
+  "include": ["."],
+  "executionEnvironments": [],
+  "typeCheckingMode": "basic",
+  "reportOptionalMemberAccess": false,
+  "extraPaths": ["typings"],
+  "exclude": ["**/.venv", "**/venv", "**/__pycache__"],
+  "pythonVersion": "3.11"
+}

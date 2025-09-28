@@ -1,7 +1,6 @@
-import json
-import os
 import pytest
 from jinja2.exceptions import UndefinedError
+
 from agents.prompts import PromptStore, ps
 
 
@@ -12,7 +11,16 @@ def test_list_prompts():
 
 
 def test_render_pr_007_contains_query():
-    s = ps.render("pr-007", {"persona": "YT Expert", "topic_or_person": "climate" , "max_results": 3, "depth_of_search": 1, "filters": ""})
+    s = ps.render(
+        "pr-007",
+        {
+            "persona": "YT Expert",
+            "topic_or_person": "climate",
+            "max_results": 3,
+            "depth_of_search": 1,
+            "filters": "",
+        },
+    )
     assert "climate" in s or "climate" in s.lower()
 
 
@@ -41,7 +49,7 @@ def test_env_var_strict_mode_raises_on_missing_variable(monkeypatch):
         p.render("pr-007", {"persona": "YT Expert", "max_results": 3})
 
 
-@pytest.mark.parametrize("val", ["0", "", "false", "False"]) 
+@pytest.mark.parametrize("val", ["0", "", "false", "False"])
 def test_env_var_falsy_values_do_not_enable_strict(monkeypatch, val):
     # These values should be treated as falsy and not enable strict mode
     monkeypatch.setenv("PROMPTS_STRICT", val)

@@ -1,12 +1,10 @@
 import json
 import time
-from unittest import mock
 
 import fakeredis
-import pytest
 
-from worker.worker import process_job, run_once
 from agents.youtube_researcher import QuotaExceeded
+from worker.worker import run_once
 
 
 def test_worker_defers_job_on_quota(monkeypatch):
@@ -14,14 +12,14 @@ def test_worker_defers_job_on_quota(monkeypatch):
     fake_redis = fakeredis.FakeRedis()
 
     # Create a sample job that will trigger YouTubeResearcher quota
-    job = {'id': 'job-123', 'payload': {'prompt_id': 'pr-007', 'query': 'foo'}}
+    job = {"id": "job-123", "payload": {"prompt_id": "pr-007", "query": "foo"}}
     raw = json.dumps(job)
 
     # Monkeypatch redis.Redis to return our fake redis
-    monkeypatch.setattr('worker.worker.redis.Redis', lambda *a, **k: fake_redis)
+    monkeypatch.setattr("worker.worker.redis.Redis", lambda *a, **k: fake_redis)
 
     # Push the job into 'tasks' (the worker will blpop it)
-    fake_redis.rpush('tasks', raw)
+    fake_redis.rpush("tasks", raw)
 
     # Create a fake researcher factory that raises QuotaExceeded when search() is invoked
     class FakeResearcher:
@@ -35,5 +33,5 @@ def test_worker_defers_job_on_quota(monkeypatch):
     assert processed is True
 
     # After run_once the job should be in delayed_jobs
-    members = fake_redis.zrangebyscore('delayed_jobs', 0, time.time() + 10)
+    members = fake_redis.zrangebyscore("delayed_jobs", 0, time.time() + 10)
     assert any(json.dumps(job).encode() == m for m in members)

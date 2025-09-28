@@ -1,5 +1,4 @@
 import json
-import os
 
 import pytest
 
@@ -25,9 +24,9 @@ def test_validate_prompts_fails_for_bad_example(tmp_path, monkeypatch):
                 "id": "bad-001",
                 "prompt_template": "Hi {{name}}",
                 "variables": ["name", "age"],
-                "example": {"name": "Alice"}
+                "example": {"name": "Alice"},
             }
-        ]
+        ],
     }
     pfile = tmp_path / "bad_prompts.json"
     pfile.write_text(json.dumps(bad), encoding="utf-8")

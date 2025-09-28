@@ -13,7 +13,7 @@ Quick start
 python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
 ```
 
-2. Set your API key (PowerShell):
+1. Set your API key (PowerShell):
 
 ```powershell
 # IMPORTANT: do NOT commit real API keys. Replace the placeholder below with your key at runtime.
@@ -22,7 +22,7 @@ $env:YOUTUBE_API_KEY = 'YOUR_API_KEY_HERE'
 $env:VECTOR_DB_URL = 'http://localhost:8000/ingest'
 ```
 
-3. Run a quick search:
+1. Run a quick search:
 
 ```powershell
 python -m agents.youtube_researcher "climate change" --max 5
@@ -41,7 +41,7 @@ Running locally with Redis (dev)
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-2. Run the API locally (optional):
+1. Run the API locally (optional):
 
 ```powershell
 pip install -r requirements.txt

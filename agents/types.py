@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Optional, Any, Dict
+from typing import Any, Dict, List, TypedDict
 
 
 class VideoRecord(TypedDict, total=False):
@@ -13,6 +13,18 @@ class VideoRecord(TypedDict, total=False):
     viewCount: int
     relevanceScore: float
     suggestedTags: List[str]
+
+
+class TweetRecord(TypedDict, total=False):
+    id: str
+    url: str
+    text: str
+    author: str
+    created_at: str
+    like_count: int
+    retweet_count: int
+    reply_count: int
+    lang: str
 
 
 class JobPayload(TypedDict, total=False):
