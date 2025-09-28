@@ -41,5 +41,25 @@ services:
     depends_on:
       - redis
 
+  mcp:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    working_dir: /app
+    env_file:
+      - ./.env
+    volumes:
+      - ./:/app
+      - ./requirements.txt:/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - YOUTUBE_API_KEY
+    command: bash -lc "pip install -r /requirements.txt && uvicorn mcp.youtube_researcher_server:app --host 0.0.0.0 --port 8002 --reload"
+    ports:
+      - "8002:8002"
+    depends_on:
+      - redis
+
 volumes:
   redis-data:

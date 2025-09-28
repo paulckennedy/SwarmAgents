@@ -2,14 +2,13 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
-
-import pytest
 
 
 def run_cli(args, cwd=None):
     repo_root = cwd or os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    return subprocess.run([sys.executable, "-m", "scripts.validate_prompts"] + args, cwd=repo_root)
+    return subprocess.run(
+        [sys.executable, "-m", "scripts.validate_prompts"] + args, cwd=repo_root
+    )
 
 
 def test_autofix_coerces_numeric_strings(tmp_path):
@@ -22,9 +21,9 @@ def test_autofix_coerces_numeric_strings(tmp_path):
                 "id": "p1",
                 "prompt_template": "Test {{topic}}",
                 "variables": ["topic", "max_results"],
-                "example": {"topic": "x", "max_results": "5"}
+                "example": {"topic": "x", "max_results": "5"},
             }
-        ]
+        ],
     }
     p.write_text(json.dumps(bad), encoding="utf-8")
     # run autofix
@@ -44,9 +43,9 @@ def test_report_json_written(tmp_path):
                 "id": "p2",
                 "prompt_template": "Hi {{name}}",
                 "variables": ["name"],
-                "example": {"name": "Alice"}
+                "example": {"name": "Alice"},
             }
-        ]
+        ],
     }
     p.write_text(json.dumps(good), encoding="utf-8")
     report = tmp_path / "report.json"

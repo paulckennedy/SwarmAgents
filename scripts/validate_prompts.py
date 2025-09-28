@@ -1,15 +1,17 @@
 """Validate prompts.json files using PromptStore's validation logic.
 
 Usage:
-  python -m scripts.validate_prompts [--paths PATH [PATH ...]] [--strict] [--no-validate] [--autofix] [--report-json FILE]
+    python -m scripts.validate_prompts [--paths PATH [PATH ...]] [--strict]
+        [--no-validate] [--autofix] [--report-json FILE]
 
 Exit code 0 on success, non-zero on validation error.
 """
+
 import argparse
 import json
 import sys
-from typing import List
 from pathlib import Path
+from typing import List
 
 from agents.prompts import PromptStore
 
@@ -51,11 +53,15 @@ def _autofix_file(path: Path) -> bool:
                         pass
 
     if changed:
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
     return changed
 
 
-def validate_prompts(paths: List[str], strict: bool = False, validate: bool = True, autofix: bool = False):
+def validate_prompts(
+    paths: List[str], strict: bool = False, validate: bool = True, autofix: bool = False
+):
     results = []
     for p in paths:
         path = Path(p) if p else Path("prompts.json")
@@ -67,7 +73,9 @@ def validate_prompts(paths: List[str], strict: bool = False, validate: bool = Tr
             try:
                 _autofix_file(path)
             except Exception as e:
-                results.append({"path": str(path), "ok": False, "error": f"autofix failed: {e}"})
+                results.append(
+                    {"path": str(path), "ok": False, "error": f"autofix failed: {e}"}
+                )
                 continue
 
         try:
@@ -81,19 +89,44 @@ def validate_prompts(paths: List[str], strict: bool = False, validate: bool = Tr
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Validate prompts.json files")
-    parser.add_argument("--paths", nargs="*", help="Paths to prompts.json files (defaults to prompts.json in repo root)")
-    parser.add_argument("--strict", action="store_true", help="Use strict Jinja rendering for validation")
-    parser.add_argument("--no-validate", dest="validate", action="store_false", help="Don't run schema validation")
-    parser.add_argument("--autofix", action="store_true", help="Attempt safe autofixes before validation")
-    parser.add_argument("--report-json", help="Write a JSON report of validation results to this file")
+    parser.add_argument(
+        "--paths",
+        nargs="*",
+        help=(
+            "Paths to prompts.json files (defaults to prompts.json in repo root)"
+        ),
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Use strict Jinja rendering for validation",
+    )
+    parser.add_argument(
+        "--no-validate",
+        dest="validate",
+        action="store_false",
+        help="Don't run schema validation",
+    )
+    parser.add_argument(
+        "--autofix",
+        action="store_true",
+        help="Attempt safe autofixes before validation",
+    )
+    parser.add_argument(
+        "--report-json", help="Write a JSON report of validation results to this file"
+    )
     args = parser.parse_args(argv)
 
     paths = args.paths or ["prompts.json"]
-    results = validate_prompts(paths=paths, strict=args.strict, validate=args.validate, autofix=args.autofix)
+    results = validate_prompts(
+        paths=paths, strict=args.strict, validate=args.validate, autofix=args.autofix
+    )
 
     if args.report_json:
         try:
-            Path(args.report_json).write_text(json.dumps(results, indent=2), encoding="utf-8")
+            Path(args.report_json).write_text(
+                json.dumps(results, indent=2), encoding="utf-8"
+            )
         except Exception as e:
             print(f"Failed to write report: {e}", file=sys.stderr)
 
@@ -101,7 +134,10 @@ def main(argv=None):
     failed = [r for r in results if not r.get("ok")]
     if failed:
         for f in failed:
-            print(f"Validation failed for {f.get('path')}: {f.get('error')}", file=sys.stderr)
+            print(
+                f"Validation failed for {f.get('path')}: {f.get('error')}",
+                file=sys.stderr,
+            )
         sys.exit(2)
 
     print("Validation succeeded for all files")

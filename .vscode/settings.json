@@ -1,5 +1,45 @@
 {
-    "python.defaultInterpreterPath": "C:\\Users\\kennepc\\AppData\\Local\\anaconda3\\python.exe",
-    "python.analysis.autoSearchPaths": true,
-    "python.languageServer": "Pylance"
+  "files.exclude": {
+    "**/.venv": true,
+    "**/venv": true
+  },
+  "search.exclude": {
+    "**/.venv": true,
+    "**/venv": true
+  },
+  "python.analysis.extraPaths": ["typings"],
+"python.analysis.exclude": [
+    "**/.venv",
+    "**/venv"
+],
+"cSpell.words": [
+    "blpop",
+    "dotenv",
+    "fakeredis",
+    "fastapi",
+    "fdst",
+    "filelock",
+    "ftmp",
+    "fval",
+    "gmtime",
+    "httpx",
+    "mdformat",
+    "mypy",
+    "procs",
+    "pycache",
+    "pytestmark",
+    "PYTHONPATH",
+    "PYTHONUNBUFFERED",
+    "rpush",
+    "swarmagents",
+    "toks",
+    "uvicorn",
+    "venv",
+    "virtualenv",
+    "vitems",
+    "YYYYMMDDTHHMMSSZ",
+    "zadd",
+    "zrangebyscore",
+    "zrem"
+]
 }

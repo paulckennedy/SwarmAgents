@@ -15,14 +15,19 @@ PYTHONPATH=. python scripts/validate_prompts.py --paths prompts.json --report-js
 ```
 
 CI notes
+
 - The GitHub Actions workflow `.github/workflows/ci.yml` runs the validator during the `test-and-validate` and `prompt-validation` jobs.
+
 - The workflow caches pip packages using `actions/cache` for faster runs.
+
 - During `prompt-validation` the job writes `validation-report.json` and uploads it only when validation fails.
 
 Autofix
+
 - The validator can attempt safe autofixes with `--autofix`. When autofix changes are made, the CI job will create a pull request with the fixes (using `peter-evans/create-pull-request`).
 
 Local troubleshooting
+
 - If imports fail when running tests locally, run:
 
 ```sh
@@ -31,4 +36,5 @@ python -m pytest -q
 ```
 
 Contact
+
 - If you prefer the validator to always be invoked as `python -m scripts.validate_prompts` instead of the script form, the repository includes an empty `scripts/__init__.py` to support module-style invocation.
