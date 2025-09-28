@@ -1,0 +1,4 @@
+# ignore runs and caches
+runs/
+__pycache__/
+*.pyc

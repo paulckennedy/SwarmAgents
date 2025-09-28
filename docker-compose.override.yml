@@ -1,0 +1,4 @@
+version: '3.8'
+
+services:
+  # No overrides required for local development; keep this file minimal.

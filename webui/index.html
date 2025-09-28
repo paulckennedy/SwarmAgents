@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>SwarmAgents UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem
+        }
+
+        textarea {
+            width: 100%;
+            height: 6rem
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 1rem
+        }
+    </style>
+</head>
+
+<body>
+    <h1>SwarmAgents — Local UI</h1>
+    <form id="taskForm">
+        <label for="prompt">Prompt</label><br />
+        <textarea id="prompt"></textarea><br />
+        <button type="submit">Submit</button>
+    </form>
+    <h2>Result</h2>
+    <pre id="result">(no result)</pre>
+
+    <script>
+        const form = document.getElementById('taskForm')
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault()
+            const prompt = document.getElementById('prompt').value
+            const res = await fetch('/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) })
+            const data = await res.json()
+            const id = data.id
+            document.getElementById('result').textContent = `Job submitted: ${id}\nPolling...`
+            const poll = async () => {
+                const r = await fetch(`/status/${id}`)
+                const s = await r.json()
+                if (s.status && s.status === 'pending') {
+                    setTimeout(poll, 1000)
+                    return
+                }
+                document.getElementById('result').textContent = JSON.stringify(s, null, 2)
+            }
+            poll()
+        })
+    </script>
+</body>
+
+</html>
