@@ -1,10 +1,4 @@
-/.venv
+# ignore runs and caches
+runs/
 __pycache__/
-.pytest_cache/
 *.pyc
-*.pyo
-*.pyd
-env/
-.env
-*.egg-info/
-dist/
