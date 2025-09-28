@@ -10,11 +10,16 @@ services:
   api:
     image: python:3.10-slim
     working_dir: /app
+    env_file:
+      - ./.env
     volumes:
-      - ./api:/app
+      - ./:/app
       - ./requirements.txt:/requirements.txt
-      - ./webui:/app/webui
-    command: bash -lc "pip install -r /requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - YOUTUBE_API_KEY
+    command: bash -lc "pip install -r /requirements.txt && uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
     depends_on:
@@ -22,25 +27,17 @@ services:
 
   worker:
     image: python:3.10-slim
-    working_dir: /worker
-    volumes:
-      - ./worker:/worker
-      - ./requirements.txt:/requirements.txt
-    command: bash -lc "pip install -r /requirements.txt && python /worker/worker.py"
-    depends_on:
-      - redis
-      - model_runner
-
-  model_runner:
-    build: ./model_runner
-    image: swarm-model-runner:latest
     working_dir: /app
+    env_file:
+      - ./.env
     volumes:
-      - ./model_runner:/app
-      - ./model_runner/models:/app/models
-    command: bash -lc "pip install -r /app/requirements.txt && uvicorn app:app --host 0.0.0.0 --port 8001 --reload"
-    ports:
-      - "8001:8001"
+      - ./:/app
+      - ./requirements.txt:/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - YOUTUBE_API_KEY
+    command: bash -lc "pip install -r /requirements.txt && python /app/worker/worker.py"
     depends_on:
       - redis
 
