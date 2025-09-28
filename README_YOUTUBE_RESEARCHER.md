@@ -16,7 +16,8 @@ python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.
 2. Set your API key (PowerShell):
 
 ```powershell
-$env:YOUTUBE_API_KEY = 'YOUR_API_KEY'
+# IMPORTANT: do NOT commit real API keys. Replace the placeholder below with your key at runtime.
+$env:YOUTUBE_API_KEY = 'YOUR_API_KEY_HERE'
 # optionally set vector DB ingestion endpoint
 $env:VECTOR_DB_URL = 'http://localhost:8000/ingest'
 ```
