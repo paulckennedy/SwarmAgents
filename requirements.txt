@@ -8,3 +8,4 @@ python-dotenv>=1.0.0
 neo4j>=5.10.0
 Jinja2>=3.1.0
 mdformat>=0.7.0
+filelock>=3.12.0

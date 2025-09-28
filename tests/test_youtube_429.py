@@ -93,3 +93,48 @@ def test_integration_worker_and_429(tmp_path, monkeypatch):
 
     members = fake_redis.zrangebyscore('delayed_jobs', 0, time.time() + 10)
     assert any(json.dumps(job).encode() == m for m in members)
+
+
+def test_429_retry_after_http_date_sets_blocked_state(tmp_path, monkeypatch):
+    # use a temp HOME for state file
+    tmp_home = str(tmp_path)
+    monkeypatch.setenv('HOME', tmp_home)
+
+    r = YouTubeResearcher(api_key='fake-key')
+
+    # craft an HTTP-date in the near future
+    from datetime import datetime, timedelta
+    from email.utils import format_datetime
+
+    future_dt = datetime.utcnow() + timedelta(seconds=30)
+    http_date = format_datetime(future_dt)
+
+    resp1 = make_resp(status=429, headers={'Retry-After': http_date}, json_data={})
+    monkeypatch.setattr('requests.get', lambda *a, **k: resp1)
+
+    with pytest.raises(QuotaExceeded) as ei:
+        r.search('anything', max_results=1, depth=1)
+
+    # blocked_until should be set and be roughly in the future (> now)
+    st = _load_state(r._state_file)
+    assert 'blocked_until' in st
+    assert st['blocked_until'] > time.time()
+
+
+def test_429_malformed_retry_after_uses_conservative_block(tmp_path, monkeypatch):
+    tmp_home = str(tmp_path)
+    monkeypatch.setenv('HOME', tmp_home)
+
+    r = YouTubeResearcher(api_key='fake-key')
+
+    # malformed Retry-After header should fall back to conservative block (>= ~60s)
+    resp1 = make_resp(status=429, headers={'Retry-After': 'not-a-valid-header'}, json_data={})
+    monkeypatch.setattr('requests.get', lambda *a, **k: resp1)
+
+    with pytest.raises(QuotaExceeded) as ei:
+        r.search('anything', max_results=1, depth=1)
+
+    st = _load_state(r._state_file)
+    assert 'blocked_until' in st
+    # block should be at least ~60 seconds from now (the conservative default in code)
+    assert st['blocked_until'] - time.time() >= 59
