@@ -10,6 +10,7 @@ import requests
 
 from agents.types import JobPayload, JobResult, VideoRecord
 from agents.youtube_researcher import APIError, QuotaExceeded, YouTubeResearcher
+from agents.twitter_researcher import TwitterResearcher, RateLimitExceeded
 from worker.redis_helpers import blpop as rh_blpop
 from worker.redis_helpers import rpush as rh_rpush
 from worker.redis_helpers import set_ as rh_set
@@ -53,7 +54,97 @@ def process_job(
         else:
             tags_iter = []
 
+        # Twitter researcher jobs
         if (
+            prompt_id == "pr-twitter"
+            or agent_field == "twitter_researcher"
+            or "twitter" in tags_iter
+        ):
+            topic = payload.get("topic_or_person") or payload.get("query") or prompt
+            # ensure numeric values for max_results/depth
+            mr_val = payload.get("max_results")
+            if isinstance(mr_val, (int, float, str)):
+                try:
+                    max_results = int(mr_val)
+                except Exception:
+                    max_results = 25
+            else:
+                max_results = 25
+
+            d_val = (
+                payload.get("depth_of_search")
+                if payload.get("depth_of_search") is not None
+                else payload.get("depth")
+            )
+            if isinstance(d_val, (int, float, str)):
+                try:
+                    depth = int(d_val)
+                except Exception:
+                    depth = 1
+            else:
+                depth = 1
+            filters = payload.get("filters")
+
+            # If an MCP endpoint is configured, call it instead of local class
+            mcp_url = os.getenv("TWITTER_MCP_URL")
+            if mcp_url:
+                try:
+                    payload_req = {
+                        "id": job_id,
+                        "query": topic,
+                        "max_results": max_results,
+                        "depth": depth,
+                        "filters": filters,
+                    }
+                    resp = requests.post(
+                        f"{mcp_url.rstrip('/')}/call", json=payload_req, timeout=30
+                    )
+                    if resp.status_code == 200:
+                        records = cast(List[Dict[str, Any]], resp.json().get("response") or [])
+                    elif resp.status_code == 429:
+                        # translate to RateLimitExceeded so caller can schedule retry
+                        ra = resp.headers.get("Retry-After")
+                        try:
+                            retry_after = float(ra) if ra is not None else None
+                        except Exception:
+                            retry_after = None
+                        raise RateLimitExceeded(int(retry_after) if retry_after is not None else 60)
+                    else:
+                        # other error -> raise APIError so fallback can happen
+                        raise APIError(f"MCP error {resp.status_code}: {resp.text}")
+                except RateLimitExceeded:
+                    # bubble up to let caller schedule retry
+                    raise
+                except Exception as e:
+                    # fallback to local researcher if MCP unreachable
+                    logging.debug(
+                        "MCP call failed, falling back to local twitter researcher: %s", e
+                    )
+                    researcher = (
+                        researcher_factory()
+                        if researcher_factory is not None
+                        else TwitterResearcher()
+                    )
+                    records = cast(List[Dict[str, Any]], researcher.search(topic))
+            else:
+                researcher = (
+                    researcher_factory()
+                    if researcher_factory is not None
+                    else TwitterResearcher()
+                )
+                records = cast(List[Dict[str, Any]], researcher.search(topic))
+
+            result = cast(
+                JobResult,
+                {
+                    "id": job_id,
+                    "response": records,
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
+        # YouTube researcher jobs
+        elif (
             prompt_id == "pr-007"
             or agent_field == "youtube_researcher"
             or "youtube" in tags_iter
@@ -174,8 +265,8 @@ def process_job(
                     "finished_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
-    except QuotaExceeded:
-        # Let QuotaExceeded bubble up so main() can schedule a retry
+    except (QuotaExceeded, RateLimitExceeded) as q:
+        # Let QuotaExceeded/RateLimitExceeded bubble up so main() can schedule a retry
         raise
     except Exception as e:
         # For other exceptions, return an error result (but don't raise)
@@ -289,7 +380,7 @@ def run_once(
                 pass
         except Exception as ex:
             print("Failed to write job to runs/:", ex)
-    except QuotaExceeded as q:
+    except (QuotaExceeded, RateLimitExceeded) as q:
         # schedule a delayed retry
         retry_after = q.retry_after if (q.retry_after and q.retry_after > 0) else 60
         retry_at = time.time() + retry_after
