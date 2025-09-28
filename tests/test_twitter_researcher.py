@@ -1,7 +1,7 @@
 from agents.twitter_researcher import TwitterResearcher, RateLimitExceeded
 
 
-def test_twitter_researcher_test_mode_returns_records():
+def test_twitter_researcher_test_mode_returns_records() -> None:
     tr = TwitterResearcher()
     results = tr.search("__TEST__")
     assert isinstance(results, list)
@@ -12,7 +12,7 @@ def test_twitter_researcher_test_mode_returns_records():
     assert rec.get("text") == "This is a test tweet"
 
 
-def test_twitter_researcher_rate_limit_exception():
+def test_twitter_researcher_rate_limit_exception() -> None:
     tr = TwitterResearcher()
     # simulate blocked state
     tr._state["blocked_until"] = 9999999999

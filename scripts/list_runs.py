@@ -5,6 +5,7 @@ Usage:
   python scripts/list_runs.py [--pattern job_* | last_job_* ]
 """
 from __future__ import annotations
+from typing import Any, Dict, List, Optional, Union, cast
 
 import argparse
 import glob

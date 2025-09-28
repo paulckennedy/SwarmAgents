@@ -84,7 +84,7 @@ class TwitterResearcher:
 
         if bearer:
             headers = {"Authorization": f"Bearer {bearer}"}
-            params = {
+            params: Any = {
                 "query": query,
                 "max_results": 10,
                 "tweet.fields": "public_metrics,created_at,lang,author_id",

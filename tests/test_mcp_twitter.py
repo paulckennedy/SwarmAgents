@@ -4,7 +4,7 @@ from mcp.twitter_researcher_server import app
 from agents.twitter_researcher import RateLimitExceeded
 
 
-def test_mcp_twitter_call_test_mode():
+def test_mcp_twitter_call_test_mode() -> None:
     client = TestClient(app)
     resp = client.post("/call", json={"query": "__TEST__"})
     assert resp.status_code == 200
@@ -13,7 +13,7 @@ def test_mcp_twitter_call_test_mode():
     assert isinstance(data["results"], list)
 
 
-def test_mcp_twitter_call_rate_limit(monkeypatch):
+def test_mcp_twitter_call_rate_limit(monkeypatch) -> None:
     # Simulate RateLimitExceeded from the researcher
     def fake_search(self, q):
         raise RateLimitExceeded(30)

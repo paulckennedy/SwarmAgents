@@ -12,6 +12,9 @@
     "**/.venv",
     "**/venv"
 ],
+{
+  "problems.excludePatterns": ["**/*ci.yml"]
+}
 "cSpell.words": [
     "blpop",
     "dotenv",

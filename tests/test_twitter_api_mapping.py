@@ -5,7 +5,7 @@ import requests
 from agents.twitter_researcher import TwitterResearcher
 
 
-def test_twitter_api_mapping_with_includes():
+def test_twitter_api_mapping_with_includes() -> None:
     sample_resp = {
         "data": [
             {"id": "111", "text": "hello", "author_id": "10", "created_at": "2025-01-01T00:00:00Z", "lang": "en"}
@@ -30,9 +30,11 @@ def test_twitter_api_mapping_with_includes():
         tr = TwitterResearcher(api_key="dummy")
         results = tr.search("something")
         assert len(results) == 1
-        r = results[0]
-        assert r["id"] == "111"
-        assert r["author"] == "alice"
-        assert r["like_count"] == 5
-        assert r["retweet_count"] == 1
-        assert "alice/status/111" in r["url"]
+    from typing import Any, Dict
+
+    r = dict(results[0])  # type: Dict[str, Any]
+    assert r["id"] == "111"
+    assert r["author"] == "alice"
+    assert r["like_count"] == 5
+    assert r["retweet_count"] == 1
+    assert "alice/status/111" in r["url"]

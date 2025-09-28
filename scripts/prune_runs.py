@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 RUNS_DIR = os.path.join(os.getcwd(), "runs", "jobs")
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument(
         "--days",
@@ -32,7 +32,7 @@ def parse_args():
     return p.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
     cutoff = datetime.now(timezone.utc) - timedelta(days=args.days)
     pattern = os.path.join(RUNS_DIR, "job_*_*.json")
