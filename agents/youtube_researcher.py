@@ -322,6 +322,29 @@ class YouTubeResearcher(AgentBase):
         if not query:
             return []
 
+        # Local test/mock mode: return deterministic canned results when set.
+        test_mode = os.environ.get("YOUTUBE_TEST_MODE", "").lower()
+        if test_mode in ("1", "true", "yes"):
+            # Return simple, predictable mock records for quick local testing.
+            collected = []
+            now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            n = min(int(max_results), 5)
+            for i in range(n):
+                record = {
+                    "videoId": f"mock-{i}-{re.sub(r'[^a-z0-9]+', '-', query.lower())[:20]}",
+                    "title": f"Mock result {i+1} for '{query}'",
+                    "description": f"This is a mocked description for '{query}', result {i+1}.",
+                    "channelTitle": "Mock Channel",
+                    "publishedAt": now_iso,
+                    "durationSeconds": 60 + i * 10,
+                    "duration": 60 + i * 10,
+                    "viewCount": 100 + i * 10,
+                    "relevanceScore": float(1.0 + i * 0.1),
+                    "suggestedTags": ["mock", "test", query.split()[0].lower() if query.split() else ""]
+                }
+                collected.append(record)
+            return collected
+
         filters = filters or {}
         collected: List[Dict] = []
 
