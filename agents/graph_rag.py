@@ -4,31 +4,41 @@ Small wrapper around the neo4j driver to ingest simple video records and
 perform basic retrievals. The tests monkeypatch GraphDatabase.driver, so the
 implementation can be fairly straightforward.
 """
-from typing import List, Dict, Optional
-import os
+
 import logging
+import os
+from typing import Any, Dict, List, Optional
+
 from neo4j import GraphDatabase, basic_auth
 
 logger = logging.getLogger(__name__)
 
 
 class GraphRAG:
-    def __init__(self, uri: str = None, user: Optional[str] = None, password: Optional[str] = None):
+    def __init__(
+        self,
+        uri: Optional[str] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+    ):
         self.uri = uri or os.environ.get("NEO4J_URI")
         self.user = user or os.environ.get("NEO4J_USER")
         self.password = password or os.environ.get("NEO4J_PASSWORD")
         if not self.uri:
             raise RuntimeError("NEO4J_URI not configured for GraphRAG")
-        self._driver = GraphDatabase.driver(self.uri, auth=basic_auth(self.user, self.password))
+        # basic_auth expects str; supply empty strings if None to satisfy runtime and type checkers
+        self._driver = GraphDatabase.driver(
+            self.uri, auth=basic_auth(self.user or "", self.password or "")
+        )
 
-    def close(self):
+    def close(self) -> None:
         try:
             self._driver.close()
         except Exception:
             pass
 
     # Ingest a list of video records into the graph
-    def ingest(self, records: List[Dict]) -> bool:
+    def ingest(self, records: List[Dict[str, Any]]) -> bool:
         if not records:
             return True
         with self._driver.session() as session:
@@ -41,7 +51,7 @@ class GraphRAG:
         return True
 
     @staticmethod
-    def _create_or_update_video(tx, record: Dict):
+    def _create_or_update_video(tx: Any, record: Dict[str, Any]) -> None:
         vid = record.get("videoId")
         title = record.get("title")
         desc = record.get("description")
@@ -98,7 +108,7 @@ class GraphRAG:
         )
 
     # Simple retrieval: given a text query, find videos by matching tags/title and expand via graph
-    def query(self, query_text: str, top_k: int = 10) -> List[Dict]:
+    def query(self, query_text: str, top_k: int = 10) -> List[Dict[str, Any]]:
         tokens = [t.lower() for t in query_text.split() if len(t) >= 3]
         if not tokens:
             return []
@@ -107,13 +117,15 @@ class GraphRAG:
         return results
 
     @staticmethod
-    def _query_tx(tx, tokens: List[str], top_k: int):
+    def _query_tx(tx: Any, tokens: List[str], top_k: int) -> List[Dict[str, Any]]:
         token_params = {f"t{i}": f"%{tokens[i]}%" for i in range(len(tokens))}
         query_parts = []
         for i in range(len(tokens)):
             query_parts.append(f"toLower(v.title) CONTAINS $t{i}")
         query = (
-            "MATCH (v:Video) WHERE " + " OR ".join(query_parts) + " RETURN v LIMIT $limit"
+            "MATCH (v:Video) WHERE "
+            + " OR ".join(query_parts)
+            + " RETURN v LIMIT $limit"
         )
         params = {**token_params, "limit": top_k}
         res = tx.run(query, **params)

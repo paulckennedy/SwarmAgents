@@ -11,23 +11,36 @@ Features:
   can schedule retries appropriately.
 - Small, dependency-light (requests, stdlib only).
 """
-from typing import List, Dict, Optional, Any, cast
-from .types import VideoRecord
-import os
-import requests
-import math
-import time
-import random
-import re
+
 import json
 import logging
+import math
+import os
+import random
+import re
+import time
+from typing import Any, Dict, List, Optional, cast
+
+import requests
+
+from .types import VideoRecord
+from .agent_base import AgentBase
+
+GraphRAG: Optional[type] = None
 try:
-    from agents.graph_rag import GraphRAG
+    # Import GraphRAG if available. If import fails, leave GraphRAG as None
+    from agents.graph_rag import GraphRAG as _GraphRAG
+
+    GraphRAG = _GraphRAG
 except Exception:
     GraphRAG = None
+
+# prompt store helper
+ps: Optional[Any] = None
 try:
-    # prompt store helper
-    from .prompts import ps
+    from .prompts import ps as _ps
+
+    ps = _ps
 except Exception:
     ps = None
 
@@ -38,7 +51,9 @@ YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 class QuotaExceeded(Exception):
     """Raised when the YouTube API quota / rate limit is exceeded and caller should retry later."""
 
-    def __init__(self, retry_after: Optional[float] = None, message: Optional[str] = None):
+    def __init__(
+        self, retry_after: Optional[float] = None, message: Optional[str] = None
+    ):
         self.retry_after = retry_after
         super().__init__(message or f"Quota exceeded; retry after {retry_after}")
 
@@ -63,12 +78,12 @@ def _load_state(path: str) -> Dict[str, Any]:
                 with lock:
                     logging.debug("Filelock acquired for read: %s", lock_path)
                     with open(path, "r", encoding="utf-8") as f:
-                        return json.load(f)
+                        return cast(Dict[str, Any], json.load(f))
             except Timeout:
                 logging.debug("Could not acquire file lock for reading %s", path)
                 # best-effort read without lock
                 with open(path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    return cast(Dict[str, Any], json.load(f))
         except Exception:
             # filelock not available; try POSIX fcntl lock
             try:
@@ -80,7 +95,7 @@ def _load_state(path: str) -> Dict[str, Any]:
                     except Exception:
                         pass
                     try:
-                        return json.load(f)
+                        return cast(Dict[str, Any], json.load(f))
                     finally:
                         try:
                             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
@@ -89,7 +104,7 @@ def _load_state(path: str) -> Dict[str, Any]:
             except Exception:
                 # fallback plain read
                 with open(path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    return cast(Dict[str, Any], json.load(f))
     except Exception:
         return {}
 
@@ -157,9 +172,6 @@ def _save_state(path: str, data: Dict[str, Any]) -> None:
         return
 
 
-from .agent_base import AgentBase
-
-
 class YouTubeResearcher(AgentBase):
     """Performs simple YouTube searches and returns curated records.
 
@@ -168,7 +180,9 @@ class YouTubeResearcher(AgentBase):
     is configured.
     """
 
-    def __init__(self, api_key: Optional[str] = None, vector_db_url: Optional[str] = None):
+    def __init__(
+        self, api_key: Optional[str] = None, vector_db_url: Optional[str] = None
+    ):
         self.api_key = api_key or os.environ.get("YOUTUBE_API_KEY")
         self.vector_db_url = vector_db_url or os.environ.get("VECTOR_DB_URL")
         # persistent state path for quota/backoff info
@@ -237,12 +251,16 @@ class YouTubeResearcher(AgentBase):
                             from email.utils import parsedate_to_datetime
 
                             dt = parsedate_to_datetime(ra)
-                            retry_after = (dt.timestamp() - now)
+                            retry_after = dt.timestamp() - now
                 except Exception:
                     retry_after = None
 
                 # persist a conservative blocked_until (now + retry_after or backoff window)
-                block_seconds = retry_after if (retry_after and retry_after > 0) else max(backoff, 60)
+                block_seconds = (
+                    retry_after
+                    if (retry_after and retry_after > 0)
+                    else max(backoff, 60)
+                )
                 blocked_until_val = now + block_seconds
                 self._set_blocked_until(blocked_until_val)
                 raise QuotaExceeded(retry_after=block_seconds)
@@ -262,7 +280,7 @@ class YouTubeResearcher(AgentBase):
 
             # successful
             try:
-                return resp.json()
+                return cast(Dict[str, Any], resp.json())
             except Exception as exc:
                 raise APIError("Invalid JSON from API") from exc
 
@@ -283,10 +301,19 @@ class YouTubeResearcher(AgentBase):
         return hours * 3600 + mins * 60 + secs
 
     @staticmethod
-    def _compute_relevance(title: Optional[str], description: Optional[str], view_count: int) -> float:
+    def _compute_relevance(
+        title: Optional[str], description: Optional[str], view_count: int
+    ) -> float:
         # simple heuristic: length-normalized keyword presence + log(view_count)
         s = ((title or "") + " " + (description or "")).lower()
-        keywords = ["interview", "talk", "lecture", "webinar", "presentation", "documentary"]
+        keywords = [
+            "interview",
+            "talk",
+            "lecture",
+            "webinar",
+            "presentation",
+            "documentary",
+        ]
         score = 0.0
         for k in keywords:
             if k in s:
@@ -312,7 +339,14 @@ class YouTubeResearcher(AgentBase):
         return tags
 
     # --- main public method ---
-    def search(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict[str, Any]] = None, **kwargs: Any) -> List[VideoRecord]:
+    def search(
+        self,
+        query: str,
+        max_results: int = 10,
+        depth: int = 2,
+        filters: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> List[VideoRecord]:
         """Search for videos matching `query` and return a list of record dicts.
 
         - query: search text
@@ -326,12 +360,12 @@ class YouTubeResearcher(AgentBase):
         # Local test/mock mode: return deterministic canned results when set.
         test_mode = os.environ.get("YOUTUBE_TEST_MODE", "").lower()
         if test_mode in ("1", "true", "yes"):
-            collected: List[VideoRecord] = []
+            collected = []
             now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             n = min(int(max_results), 5)
             for i in range(n):
                 vid_id = f"mock-{i}-{re.sub(r'[^a-z0-9]+', '-', query.lower())[:20]}"
-                record: VideoRecord = {
+                record = {
                     "videoId": vid_id,
                     "url": f"https://www.youtube.com/watch?v={vid_id}",
                     "title": f"Mock result {i+1} for '{query}'",
@@ -342,13 +376,17 @@ class YouTubeResearcher(AgentBase):
                     "duration": 60 + i * 10,
                     "viewCount": 100 + i * 10,
                     "relevanceScore": float(1.0 + i * 0.1),
-                    "suggestedTags": ["mock", "test", query.split()[0].lower() if query.split() else ""]
+                    "suggestedTags": [
+                        "mock",
+                        "test",
+                        query.split()[0].lower() if query.split() else "",
+                    ],
                 }
                 collected.append(record)
-            return collected
+            return cast(List[VideoRecord], collected)
 
         filters = filters or {}
-        collected: List[VideoRecord] = []
+        collected = []
 
         # page tokens loop
         params: Dict[str, Any] = {
@@ -362,7 +400,7 @@ class YouTubeResearcher(AgentBase):
         next_page_token = None
         pages = 0
         # support alias depth_of_search from callers/tests
-        depth = int(kwargs.get('depth_of_search', depth))
+        depth = int(kwargs.get("depth_of_search", depth))
         while pages < depth:
             if next_page_token:
                 params["pageToken"] = next_page_token
@@ -376,12 +414,19 @@ class YouTubeResearcher(AgentBase):
                 break
 
             # Collect video ids to batch fetch details
-            video_ids = [it["id"]["videoId"] for it in items if it.get("id") and it["id"].get("videoId")]
+            video_ids = [
+                it["id"]["videoId"]
+                for it in items
+                if it.get("id") and it["id"].get("videoId")
+            ]
             if not video_ids:
                 continue
 
             # fetch video details (contentDetails, statistics)
-            vid_params = {"part": "snippet,contentDetails,statistics", "id": ",".join(video_ids)}
+            vid_params = {
+                "part": "snippet,contentDetails,statistics",
+                "id": ",".join(video_ids),
+            }
             vid_data = self._call_api(YOUTUBE_VIDEOS_URL, vid_params)
             vitems = {v["id"]: v for v in vid_data.get("items", [])}
 
@@ -397,9 +442,11 @@ class YouTubeResearcher(AgentBase):
                 content = v.get("contentDetails", {})
                 stats = v.get("statistics", {})
                 view_count = int(stats.get("viewCount") or 0)
-                duration = self._iso8601_duration_to_seconds(content.get("duration", ""))
+                duration = self._iso8601_duration_to_seconds(
+                    content.get("duration", "")
+                )
 
-                record: VideoRecord = {
+                record = {
                     "videoId": vid,
                     "url": f"https://www.youtube.com/watch?v={vid}",
                     "title": snip.get("title"),
@@ -410,8 +457,12 @@ class YouTubeResearcher(AgentBase):
                     # legacy field used in some tests/consumers
                     "duration": duration,
                     "viewCount": view_count,
-                    "relevanceScore": self._compute_relevance(snip.get("title"), snip.get("description"), view_count),
-                    "suggestedTags": self._extract_tags(snip.get("title"), snip.get("description")),
+                    "relevanceScore": self._compute_relevance(
+                        snip.get("title"), snip.get("description"), view_count
+                    ),
+                    "suggestedTags": self._extract_tags(
+                        snip.get("title"), snip.get("description")
+                    ),
                 }
 
                 collected.append(record)
@@ -427,10 +478,17 @@ class YouTubeResearcher(AgentBase):
             # small polite pause between pages
             time.sleep(0.2 + random.random() * 0.1)
 
-        return collected[:max_results]
+        # after collecting pages, return trimmed results
+        return cast(List[VideoRecord], collected[:max_results])
 
     # --- optional: render an LLM prompt using the central prompts.json ---
-    def make_search_prompt(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict[str, Any]] = None) -> str:
+    def make_search_prompt(
+        self,
+        query: str,
+        max_results: int = 10,
+        depth: int = 2,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """Render the YouTube Researcher prompt (pr-007) from prompts.json.
 
         This is a convenience for downstream enrichment or for sending to a model runner.
@@ -448,21 +506,27 @@ class YouTubeResearcher(AgentBase):
     # Optional helper to push to vector DB; left small and best-effort.
     def post_to_vector_db(self, records: List[Dict[str, Any]]) -> bool:
         # If configured with a neo4j URI, use the GraphRAG agent
-        if self.vector_db_url and self.vector_db_url.startswith("neo4j://") and GraphRAG:
+        if (
+            self.vector_db_url
+            and self.vector_db_url.startswith("neo4j://")
+            and GraphRAG is not None
+        ):
             try:
                 # GraphRAG expects URI, user, password via env or defaults
                 g = GraphRAG(uri=self.vector_db_url)
                 ok = g.ingest(records)
                 g.close()
-                return ok
+                return bool(ok)
             except Exception:
                 return False
 
         if not self.vector_db_url:
             raise RuntimeError("No VECTOR_DB_URL configured")
         try:
-            resp = requests.post(self.vector_db_url, json={"objects": records}, timeout=10)
-            return resp.status_code >= 200 and resp.status_code < 300
+            resp = requests.post(
+                self.vector_db_url, json={"objects": records}, timeout=10
+            )
+            return bool(200 <= resp.status_code < 300)
         except Exception:
             return False
 

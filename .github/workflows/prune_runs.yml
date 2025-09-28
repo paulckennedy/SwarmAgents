@@ -1,0 +1,28 @@
+name: Prune Runs
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # daily at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Retention days'
+        required: false
+        default: '30'
+      dry_run:
+        description: 'Dry run (true/false)'
+        required: false
+        default: 'true'
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Prune runs
+        run: |
+          python scripts/prune_runs.py --days ${{ github.event.inputs.days || '30' }}$([ "${{ github.event.inputs.dry_run }}" = "true" ] && echo " --dry-run" || echo "")

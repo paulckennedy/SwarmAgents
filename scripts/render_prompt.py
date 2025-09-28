@@ -3,8 +3,9 @@
 
 Usage: python scripts/render_prompt.py <prompt_id> [variables.json]
 """
-import sys
 import json
+import sys
+
 from agents import ps
 
 

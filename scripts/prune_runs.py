@@ -7,19 +7,28 @@ Usage:
 Deletes snapshot files matching job_<id>_YYYYMMDDTHHMMSSZ.json older than N days.
 """
 from __future__ import annotations
-import os
-import argparse
-import time
-from datetime import datetime, timezone, timedelta
-import glob
 
-RUNS_DIR = os.path.join(os.getcwd(), "runs")
+import argparse
+import glob
+import os
+from datetime import datetime, timedelta, timezone
+
+RUNS_DIR = os.path.join(os.getcwd(), "runs", "jobs")
 
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--days", type=int, default=30, help="Remove snapshots older than this many days")
-    p.add_argument("--dry-run", action="store_true", help="Show files that would be removed but don't delete")
+    p.add_argument(
+        "--days",
+        type=int,
+        default=30,
+        help="Remove snapshots older than this many days",
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show files that would be removed but don't delete",
+    )
     return p.parse_args()
 
 
@@ -35,9 +44,11 @@ def main():
             parts = base.rsplit("_", 2)
             if len(parts) < 2:
                 continue
-            ts_part = parts[-1].rsplit('.', 1)[0]
+            ts_part = parts[-1].rsplit(".", 1)[0]
             # parse YYYYMMDDTHHMMSSZ
-            dt = datetime.strptime(ts_part, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+            dt = datetime.strptime(ts_part, "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=timezone.utc
+            )
             if dt < cutoff:
                 if args.dry_run:
                     print("Would remove:", path)
@@ -50,5 +61,5 @@ def main():
     print(f"Done. Removed {removed} files.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -2,14 +2,13 @@ name: CI
 
 on:
   push:
-    branches:
-      - '**'
+    branches: [ main, master ]
   pull_request:
-    branches:
-      - '**'
+    branches: [ main, master ]
+  workflow_dispatch: {}
 
 jobs:
-  test:
+  test-and-validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,71 +17,80 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      - name: Run tests
-        run: |
-          pytest -q
-name: CI
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
-
-jobs:
-  test-and-validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
           python-version: '3.11'
-      - name: Install dependencies
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: "${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}"
+          restore-keys: "${{ runner.os }}-pip-"
+
+      - name: Install pip deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --no-cache-dir -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
+
       - name: Run tests
-        run: python -m pytest -q
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q
+
       - name: Validate prompts
-        run: python -m scripts.validate_prompts --paths prompts.json --report-json validation-report.json
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m scripts.validate_prompts --paths prompts.json --report-json validation-report.json
 
   prompt-validation:
     needs: test-and-validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           persist-credentials: true
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install dependencies
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: "${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}"
+          restore-keys: "${{ runner.os }}-pip-"
+      - name: Install pip deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --no-cache-dir -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
+
       - name: Run prompt validation (produce report)
         id: validate
         continue-on-error: true
-        run: python -m scripts.validate_prompts --paths prompts.json --report-json validation-report.json
-      - name: Upload validation report
+        run: |
+          PYTHONPATH=.
+          python -m scripts.validate_prompts --paths prompts.json --report-json validation-report.json
+
+      - name: Upload validation report (on failure)
+        if: steps.validate.conclusion != 'success'
         uses: actions/upload-artifact@v4
         with:
           name: prompts-validation-report
           path: validation-report.json
+
       - name: Attempt autofix (safe fixes)
         id: autofix
         continue-on-error: true
-        run: python -m scripts.validate_prompts --paths prompts.json --autofix
+        run: |
+          PYTHONPATH=.
+          python -m scripts.validate_prompts --paths prompts.json --autofix
+
       - name: Create PR for autofix changes
         uses: peter-evans/create-pull-request@v5
         with:
@@ -93,17 +101,22 @@ jobs:
           body: "This PR contains automatic fixes to prompts.json from the validation CI job."
 
   slow-tests:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Run slow tests only
-        run: python -m pytest -q -m slow
+        run: |
+          python -m pytest -q -m slow

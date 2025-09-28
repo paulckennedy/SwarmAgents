@@ -1,14 +1,13 @@
 import os
-import json
 import time
 from multiprocessing import Process, Queue
 
 import pytest
 
+from agents.youtube_researcher import _load_state, _save_state
+
 
 pytestmark = pytest.mark.slow
-
-from agents.youtube_researcher import _save_state, _load_state
 
 
 def _writer_task(err_q: Queue, path: str, writer_id: int, iterations: int):

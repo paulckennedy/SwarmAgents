@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Optional, Any, Dict
+from typing import Any, Dict, List, TypedDict
 
 
 class VideoRecord(TypedDict, total=False):
