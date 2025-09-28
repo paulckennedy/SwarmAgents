@@ -102,6 +102,13 @@ python -m scripts.validate_prompts --paths prompts.json --autofix --report-json 
 - `graph_rag.py` is a Neo4j-based ingestion/query helper; to enable it you need a Neo4j instance and the `neo4j` driver installed (already in `requirements.txt`).
 - If you want stronger schema validation (types or shapes for all fields) I can add JSON Schema validation or pydantic models for the prompt structure.
 
+### YouTube state file and locking
+
+- The YouTube agent persists simple quota/backoff state to `~/.swarmagents/youtube_state.json`.
+- To avoid concurrent writer/readers corrupting the file, the agent now uses a cross-platform lock (`filelock`) with a POSIX `fcntl` fallback.
+- The code writes to a `.tmp` file, fsyncs it, and performs an atomic `os.replace` while holding an exclusive lock when possible.
+- On platforms where locking isn't available, the agent falls back to atomic replace (best-effort). If you need strict Windows guarantees, ensure `filelock` is installed (included in `requirements.txt`).
+
 ## Contributing
 
 - Run tests before opening a PR: `python -m pytest -q`.

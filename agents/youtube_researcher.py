@@ -19,6 +19,7 @@ import time
 import random
 import re
 import json
+import logging
 try:
     from agents.graph_rag import GraphRAG
 except Exception:
@@ -49,8 +50,45 @@ def _load_state(path: str) -> Dict:
     try:
         if not os.path.exists(path):
             return {}
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+
+        # Prefer filelock (cross-platform) if installed
+        try:
+            from filelock import FileLock, Timeout
+
+            lock_path = path + ".lock"
+            lock = FileLock(lock_path, timeout=0.1)
+            try:
+                logging.debug("Acquiring filelock for read: %s", lock_path)
+                with lock:
+                    logging.debug("Filelock acquired for read: %s", lock_path)
+                    with open(path, "r", encoding="utf-8") as f:
+                        return json.load(f)
+            except Timeout:
+                logging.debug("Could not acquire file lock for reading %s", path)
+                # best-effort read without lock
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            # filelock not available; try POSIX fcntl lock
+            try:
+                import fcntl
+
+                with open(path, "r", encoding="utf-8") as f:
+                    try:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                    except Exception:
+                        pass
+                    try:
+                        return json.load(f)
+                    finally:
+                        try:
+                            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                        except Exception:
+                            pass
+            except Exception:
+                # fallback plain read
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
     except Exception:
         return {}
 
@@ -58,9 +96,61 @@ def _load_state(path: str) -> Dict:
 def _save_state(path: str, data: Dict) -> None:
     try:
         tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-        os.replace(tmp, path)
+        d = os.path.dirname(path)
+        os.makedirs(d, exist_ok=True)
+
+        # Write to temp and fsync
+        with open(tmp, "w", encoding="utf-8") as ftmp:
+            json.dump(data, ftmp)
+            ftmp.flush()
+            try:
+                os.fsync(ftmp.fileno())
+            except Exception:
+                pass
+
+        # Prefer filelock for cross-platform exclusive locking during replace
+        try:
+            from filelock import FileLock, Timeout
+
+            lock_path = path + ".lock"
+            lock = FileLock(lock_path, timeout=1.0)
+            try:
+                logging.debug("Acquiring filelock for write: %s", lock_path)
+                with lock:
+                    logging.debug("Filelock acquired for write: %s", lock_path)
+                    os.replace(tmp, path)
+            except Timeout:
+                logging.debug("Could not acquire file lock for writing %s", path)
+                # fallback to atomic replace without lock
+                os.replace(tmp, path)
+            return
+        except Exception:
+            # filelock not available; fall back to POSIX fcntl when possible
+            pass
+
+        try:
+            import fcntl
+
+            if os.path.exists(path):
+                with open(path, "r+", encoding="utf-8") as fdst:
+                    try:
+                        fcntl.flock(fdst.fileno(), fcntl.LOCK_EX)
+                    except Exception:
+                        pass
+                    try:
+                        os.replace(tmp, path)
+                    finally:
+                        try:
+                            fcntl.flock(fdst.fileno(), fcntl.LOCK_UN)
+                        except Exception:
+                            pass
+            else:
+                os.replace(tmp, path)
+            return
+        except Exception:
+            # final fallback: atomic replace
+            os.replace(tmp, path)
+            return
     except Exception:
         # best-effort; do not fail the caller on state save
         return
