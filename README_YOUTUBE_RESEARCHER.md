@@ -1,4 +1,4 @@
-YouTube Researcher Agent
+# YouTube Researcher Agent
 
 Purpose
 
@@ -48,13 +48,13 @@ pip install -r requirements.txt
 uvicorn api.main:app --reload --port 8000
 ```
 
-3. To enqueue a YouTube research job to Redis, POST to `/tasks` on the API with payload:
+1. To enqueue a YouTube research job to Redis, POST to `/tasks` on the API with payload:
 
 ```json
 {
-	"prompt_id": "pr-007",
-	"topic_or_person": "climate change",
-	"max_results": 10
+ "prompt_id": "pr-007",
+ "topic_or_person": "climate change",
+ "max_results": 10
 }
 ```
 

@@ -76,7 +76,7 @@ python -m scripts.validate_prompts --paths prompts.json --autofix --report-json 
   - `validate_schema` mode: optional schema validation controlled by `PROMPTS_VALIDATE_SCHEMA=1` or by passing `validate_schema=True` to the constructor.
   - `set_default_promptstore()` helper to programmatically override the module-level `ps` default used by other modules.
 
-### Validation checks (conservative):
+### Validation checks (conservative)
 
 - Ensures `id`, `prompt_template`, `variables`, and (if present) `tags` are the expected types.
 - Confirms each `example` contains all declared variables.
@@ -207,8 +207,6 @@ Next steps I can do now
 
 Tell me which of the next steps to implement.
 
-
 Using `.env` or CI
 
 If you prefer to store the API endpoint in a file, create a `.env` with a line like `API_URL=http://localhost:8000` and load it in your shell or CI environment. In GitHub Actions, set `API_URL` as an environment variable for the job or step that runs integration checks or examples.
-

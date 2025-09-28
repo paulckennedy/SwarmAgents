@@ -2,6 +2,32 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "List run snapshots",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/list_runs.py --pattern job_",
+      "group": "none",
+      "presentation": {"reveal": "silent"}
+    },
+    {
+      "label": "List last run files",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/list_runs.py --pattern last_job_",
+      "group": "none",
+      "presentation": {"reveal": "silent"}
+    },
+    {
+      "label": "Prune old snapshots (dry-run)",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/prune_runs.py --days 30 --dry-run",
+      "group": "none",
+      "presentation": {"reveal": "silent"}
+    }
+  ]
+}
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
       "label": "pytest: run selected tests",
       "type": "shell",
       "command": "C:\\Users\\kennepc\\AppData\\Local\\anaconda3\\python.exe -m pytest -q tests/test_worker_delayed_retry.py tests/test_youtube_429.py -q",

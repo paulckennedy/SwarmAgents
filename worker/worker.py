@@ -4,8 +4,8 @@ import os
 import time
 import requests
 from agents.youtube_researcher import YouTubeResearcher, QuotaExceeded
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, Any, Dict
 
 
 def call_model_runner(prompt: str) -> str:
@@ -20,7 +20,7 @@ def call_model_runner(prompt: str) -> str:
         return f"(fallback-mock) Echo: {prompt}"
 
 
-def process_job(job: dict, researcher_factory=None) -> dict:
+def process_job(job: Dict[str, Any], researcher_factory=None) -> Dict[str, Any]:
     job_id = job.get('id')
     payload = job.get('payload', {})
     prompt = payload.get('prompt', '')
@@ -44,23 +44,23 @@ def process_job(job: dict, researcher_factory=None) -> dict:
             result = {
                 'id': job_id,
                 'response': records,
-                'finished_at': datetime.utcnow().isoformat() + 'Z'
+                'finished_at': datetime.now(timezone.utc).isoformat()
             }
         else:
             response = call_model_runner(prompt)
             result = {
                 'id': job_id,
                 'response': response,
-                'finished_at': datetime.utcnow().isoformat() + 'Z'
+                'finished_at': datetime.now(timezone.utc).isoformat()
             }
     except Exception as e:
         # Let QuotaExceeded bubble up so main() can schedule a retry
         if isinstance(e, QuotaExceeded):
             raise
-        result = {
+            result = {
             'id': job_id,
             'error': str(e),
-            'finished_at': datetime.utcnow().isoformat() + 'Z'
+            'finished_at': datetime.now(timezone.utc).isoformat()
         }
     return result
 
@@ -116,6 +116,41 @@ def run_once(r: Optional[redis.Redis] = None, blpop_timeout: int = 5, researcher
             result = process_job(job, researcher_factory=researcher_factory)
         r.set(f"job:{job.get('id')}", json.dumps(result))
         print('Job completed', job.get('id'))
+        # Persist the result to disk for later inspection/processing only on success
+        try:
+            if result.get('error'):
+                # Do not persist error results to runs/ (keep them only in Redis)
+                return True
+
+            runs_dir = os.path.join(os.getcwd(), 'runs')
+            os.makedirs(runs_dir, exist_ok=True)
+            # Ensure each video record has a URL field if it's a list of dicts
+            resp = result.get('response')
+            if isinstance(resp, list):
+                for item in resp:
+                    try:
+                        vid = item.get('videoId')
+                        if vid and not item.get('url'):
+                            item['url'] = f"https://www.youtube.com/watch?v={vid}"
+                    except Exception:
+                        pass
+
+            # write a stable 'last' file and a timestamped snapshot
+            stable_fname = os.path.join(runs_dir, f"last_job_{job.get('id')}.json")
+            with open(stable_fname, 'w', encoding='utf-8') as fh:
+                json.dump(result, fh, indent=2)
+
+            # timestamped snapshot for archival
+            try:
+                from datetime import datetime as _dt
+                ts = _dt.utcnow().strftime('%Y%m%dT%H%M%SZ')
+                snap_fname = os.path.join(runs_dir, f"job_{job.get('id')}_{ts}.json")
+                with open(snap_fname, 'w', encoding='utf-8') as sfh:
+                    json.dump(result, sfh, indent=2)
+            except Exception:
+                pass
+        except Exception as ex:
+            print('Failed to write job to runs/:', ex)
     except QuotaExceeded as q:
         # schedule a delayed retry
         retry_after = q.retry_after if (q.retry_after and q.retry_after > 0) else 60

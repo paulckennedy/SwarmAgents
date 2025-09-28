@@ -11,7 +11,8 @@ Features:
   can schedule retries appropriately.
 - Small, dependency-light (requests, stdlib only).
 """
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any, cast
+from .types import VideoRecord
 import os
 import requests
 import math
@@ -46,7 +47,7 @@ class APIError(Exception):
     """Generic API error wrapper"""
 
 
-def _load_state(path: str) -> Dict:
+def _load_state(path: str) -> Dict[str, Any]:
     try:
         if not os.path.exists(path):
             return {}
@@ -93,7 +94,7 @@ def _load_state(path: str) -> Dict:
         return {}
 
 
-def _save_state(path: str, data: Dict) -> None:
+def _save_state(path: str, data: Dict[str, Any]) -> None:
     try:
         tmp = path + ".tmp"
         d = os.path.dirname(path)
@@ -194,7 +195,7 @@ class YouTubeResearcher(AgentBase):
         _save_state(self._state_file, st)
 
     # --- low-level API call with quota handling ---
-    def _call_api(self, url: str, params: Dict) -> Dict:
+    def _call_api(self, url: str, params: Dict[str, Any]) -> Dict[str, Any]:
         if not self.api_key:
             raise RuntimeError("No YOUTUBE_API_KEY configured for live API calls")
 
@@ -311,7 +312,7 @@ class YouTubeResearcher(AgentBase):
         return tags
 
     # --- main public method ---
-    def search(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict] = None, **kwargs) -> List[Dict]:
+    def search(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict[str, Any]] = None, **kwargs: Any) -> List[VideoRecord]:
         """Search for videos matching `query` and return a list of record dicts.
 
         - query: search text
@@ -325,13 +326,14 @@ class YouTubeResearcher(AgentBase):
         # Local test/mock mode: return deterministic canned results when set.
         test_mode = os.environ.get("YOUTUBE_TEST_MODE", "").lower()
         if test_mode in ("1", "true", "yes"):
-            # Return simple, predictable mock records for quick local testing.
-            collected = []
+            collected: List[VideoRecord] = []
             now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             n = min(int(max_results), 5)
             for i in range(n):
-                record = {
-                    "videoId": f"mock-{i}-{re.sub(r'[^a-z0-9]+', '-', query.lower())[:20]}",
+                vid_id = f"mock-{i}-{re.sub(r'[^a-z0-9]+', '-', query.lower())[:20]}"
+                record: VideoRecord = {
+                    "videoId": vid_id,
+                    "url": f"https://www.youtube.com/watch?v={vid_id}",
                     "title": f"Mock result {i+1} for '{query}'",
                     "description": f"This is a mocked description for '{query}', result {i+1}.",
                     "channelTitle": "Mock Channel",
@@ -346,10 +348,10 @@ class YouTubeResearcher(AgentBase):
             return collected
 
         filters = filters or {}
-        collected: List[Dict] = []
+        collected: List[VideoRecord] = []
 
         # page tokens loop
-        params = {
+        params: Dict[str, Any] = {
             "part": "snippet",
             "q": query,
             "type": "video",
@@ -397,8 +399,9 @@ class YouTubeResearcher(AgentBase):
                 view_count = int(stats.get("viewCount") or 0)
                 duration = self._iso8601_duration_to_seconds(content.get("duration", ""))
 
-                record = {
+                record: VideoRecord = {
                     "videoId": vid,
+                    "url": f"https://www.youtube.com/watch?v={vid}",
                     "title": snip.get("title"),
                     "description": (snip.get("description") or "").strip(),
                     "channelTitle": snip.get("channelTitle"),
@@ -427,7 +430,7 @@ class YouTubeResearcher(AgentBase):
         return collected[:max_results]
 
     # --- optional: render an LLM prompt using the central prompts.json ---
-    def make_search_prompt(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict] = None) -> str:
+    def make_search_prompt(self, query: str, max_results: int = 10, depth: int = 2, filters: Optional[Dict[str, Any]] = None) -> str:
         """Render the YouTube Researcher prompt (pr-007) from prompts.json.
 
         This is a convenience for downstream enrichment or for sending to a model runner.
@@ -443,7 +446,7 @@ class YouTubeResearcher(AgentBase):
         return self.render_prompt("pr-007", vars)
 
     # Optional helper to push to vector DB; left small and best-effort.
-    def post_to_vector_db(self, records: List[Dict]) -> bool:
+    def post_to_vector_db(self, records: List[Dict[str, Any]]) -> bool:
         # If configured with a neo4j URI, use the GraphRAG agent
         if self.vector_db_url and self.vector_db_url.startswith("neo4j://") and GraphRAG:
             try:

@@ -1,9 +1,4 @@
 version: '3.8'
 
 services:
-  model_runner:
-    volumes:
-      - ./model_runner:/app
-      - ./model_runner/models:/app/models
-      - ./llama.cpp:/app/llama.cpp  # bind-mount a host-built llama.cpp for faster iteration
-    command: bash -lc "pip install -r /app/requirements.txt && uvicorn app:app --host 0.0.0.0 --port 8001 --reload"
+  # No overrides required for local development; keep this file minimal.
